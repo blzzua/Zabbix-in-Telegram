@@ -470,14 +470,25 @@ def age2sec(age_str):
 
 
 def main():
+    if 'HTTP_PROXY' in os.environ:
+        del os.environ['HTTP_PROXY']
+    if 'http_proxy' in os.environ:
+        del os.environ['http_proxy']
+    if 'HTTPS_PROXY' in os.environ:
+        del os.environ['HTTPS_PROXY']
+    if 'https_proxy' in os.environ:
+        del os.environ['https_proxy']
+
+
 
     tmp_dir = zbxtg_settings.zbx_tg_tmp_dir
-    if tmp_dir == "/tmp/" + zbxtg_settings.zbx_tg_prefix:
+    uids_dir = zbxtg_settings.zbx_tg_uids_dir
+    if uids_dir == "/some/path/" + zbxtg_settings.zbx_tg_prefix:
         print_message("WARNING: it is strongly recommended to change `zbx_tg_tmp_dir` variable in config!!!")
         print_message("https://github.com/ableev/Zabbix-in-Telegram/wiki/Change-zbx_tg_tmp_dir-in-settings")
 
     tmp_cookie = tmp_dir + "/cookie.py.txt"
-    tmp_uids = tmp_dir + "/uids.txt"
+    tmp_uids = uids_dir + "/uids.txt"
     tmp_need_update = False  # do we need to update cache file with uids or not
 
     rnd = random.randint(0, 999)
@@ -514,6 +525,7 @@ def main():
         "to": None,
         "to_group": None,
         "forked": False,
+        "disable_notification": False,
     }
 
     url_github = "https://github.com/ableev/Zabbix-in-Telegram"
@@ -540,6 +552,8 @@ def main():
                     "url": "Channel-support"},
         "disable_web_page_preview": {"name": "disable_web_page_preview", "type": "bool",
                                      "help": "disable web page preview", "url": "Disable-web-page-preview"},
+        "disable_notification": {"name": "disable_notification", "type": "bool",
+                                     "help": "disable notification", "url": ""},
         "location": {"name": "location", "type": "str", "help": "address of location", "url": "Location"},
         "lat": {"name": "lat", "type": "str", "help": "specify latitude (and lon too!)", "url": "Location"},
         "lon": {"name": "lon", "type": "str", "help": "specify longitude (and lat too!)", "url": "Location"},
@@ -680,6 +694,8 @@ def main():
     is_debug = bool(settings["is_debug"])
     is_channel = bool(settings["is_channel"])
     disable_web_page_preview = bool(settings["disable_web_page_preview"])
+    disable_notification =  bool(settings["disable_notification"])
+    tg.disable_notification = disable_notification
     is_single_message = bool(settings["is_single_message"])
 
     # experimental way to send message to the group https://github.com/ableev/Zabbix-in-Telegram/issues/15

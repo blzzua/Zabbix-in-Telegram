@@ -3,7 +3,8 @@
 tg_key = "XYZ"  # telegram bot api key
 
 zbx_tg_prefix = "zbxtg"  # variable for separating text from script info
-zbx_tg_tmp_dir = "/var/tmp/" + zbx_tg_prefix  # directory for saving caches, uids, cookies, etc.
+zbx_tg_tmp_dir = "/var/tmp/" + zbx_tg_prefix  # directory for saving caches, cookies, etc.
+uids_dir = "/some/path/"         # directory for saving uids.
 zbx_tg_signature = False
 
 zbx_tg_update_messages = True
