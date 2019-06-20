@@ -15,6 +15,7 @@ import subprocess
 #import sqlite3
 from os.path import dirname
 import zbxtg_settings
+import tempfile
 
 
 class Cache:
@@ -304,7 +305,8 @@ class ZabbixWeb:
         self.cookie = cookie
 
     def graph_get(self, itemid, period, title, width, height, version=3):
-        file_img = self.tmp_dir + "/{0}.png".format("".join(itemid))
+        file_img_fd = tempfile.NamedTemporaryFile(mode="wb", suffix=".png", prefix="{0}-".format("".join(itemid)), dir=self.tmp_dir, delete=False  )
+        file_img = file_img_fd.name
 
         title = requests.utils.quote(title)
 
