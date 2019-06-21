@@ -699,7 +699,11 @@ def main():
     disable_notification =  bool(settings["disable_notification"])
     tg.disable_notification = disable_notification
     is_single_message = bool(settings["is_single_message"])
-
+    
+    # workaround for mutually exclusive settings values https://github.com/ableev/Zabbix-in-Telegram/issues/172
+    if not tg_method_image and is_single_message == True:
+        is_single_message = False
+        
     # experimental way to send message to the group https://github.com/ableev/Zabbix-in-Telegram/issues/15
     if args[0].split("/")[-1] == "zbxtg_group.py" or "--group" in args or tg_chat or tg_group:
         tg_chat = True
