@@ -16,7 +16,8 @@ import subprocess
 from os.path import dirname
 import zbxtg_settings
 import tempfile
-
+import traceback
+import logging
 
 class Cache:
     def __init__(self, database):
@@ -63,22 +64,21 @@ class TelegramAPI:
     def get_updates(self):
         url = self.tg_url_bot_general + self.key + "/getUpdates"
         params = {"offset": self.update_offset}
-        if self.debug:
-            print_message(url)
+        logging.debug(url)
         answer = requests.post(url, params=params, proxies=self.proxies)
         self.result = answer.json()
         if self.get_updates_from_file:
-            print_message("Getting updated from file getUpdates.txt")
+            logging.info("Getting updated from file getUpdates.txt")
             self.result = json.loads("".join(file_read("getUpdates.txt")))
-        if self.debug:
-            print_message("Content of /getUpdates:")
-            print_message(json.dumps(self.result))
+        logging.debug("Content of /getUpdates:")
+        logging.debug(json.dumps(self.result))
         self.ok_update()
         return self.result
 
     def send_message(self, to, message):
         url = self.tg_url_bot_general + self.key + "/sendMessage"
         message = "\n".join(message)
+        logging.debug("{}".format(repr(message)))
         params = {"chat_id": to, "text": message, "disable_web_page_preview": self.disable_web_page_preview,
                   "disable_notification": self.disable_notification}
         if self.reply_to_message_id:
@@ -88,12 +88,12 @@ class TelegramAPI:
             if self.markdown:
                 parse_mode = "Markdown"
             params["parse_mode"] = parse_mode
-        if self.debug:
-            print_message("Trying to /sendMessage:")
-            print_message(url)
-            print_message("post params: " + str(params))
+        logging.debug("Trying to /sendMessage" + 'to')
+        logging.debug(url)
+        logging.debug("post params: " + str(params))
         answer = requests.post(url, params=params, proxies=self.proxies)
         if answer.status_code == 414:
+            logging.warning("414 URI Too Long")
             self.result = {"ok": False, "description": "414 URI Too Long"}
         else:
             self.result = answer.json()
@@ -111,10 +111,9 @@ class TelegramAPI:
             if self.markdown:
                 parse_mode = "Markdown"
             params["parse_mode"] = parse_mode
-        if self.debug:
-            print_message("Trying to /editMessageText:")
-            print_message(url)
-            print_message("post params: " + str(params))
+        logging.debug("Trying to /editMessageText:")
+        logging.debug(url)
+        logging.debug("post params: " + str(params))
         answer = requests.post(url, params=params, proxies=self.proxies)
         self.result = answer.json()
         self.ok_update()
@@ -139,11 +138,10 @@ class TelegramAPI:
         if self.reply_to_message_id:
             params["reply_to_message_id"] = self.reply_to_message_id
         files = {"photo": open(path, 'rb')}
-        if self.debug:
-            print_message("Trying to /sendPhoto:")
-            print_message(url)
-            print_message(params)
-            print_message("files: " + str(files))
+        logging.debug("Trying to /sendPhoto:")
+        logging.debug(url)
+        logging.debug(params)
+        logging.debug("files: " + str(files))
         answer = requests.post(url, params=params, files=files, proxies=self.proxies)
         self.result = answer.json()
         self.ok_update()
@@ -163,11 +161,10 @@ class TelegramAPI:
         if self.reply_to_message_id:
             params["reply_to_message_id"] = self.reply_to_message_id
         files = {"document": open(path, 'rb')}
-        if self.debug:
-            print_message("Trying to /sendDocument:")
-            print_message(url)
-            print_message(params)
-            print_message("files: " + str(files))
+        logging.debug("Trying to /sendDocument:")
+        logging.debug(url)
+        logging.debug(params)
+        logging.debug("files: " + str(files))
         answer = requests.post(url, params=params, files=files, proxies=self.proxies)
         self.result = answer.json()
         self.ok_update()
@@ -175,8 +172,8 @@ class TelegramAPI:
 
     def get_uid(self, name):
         uid = 0
-        if self.debug:
-            print_message("Getting uid from /getUpdates...")
+        
+        logging.debug("Getting uid from /getUpdates...")
         updates = self.get_updates()
         for m in updates["result"]:
             if "message" in m:
@@ -201,23 +198,21 @@ class TelegramAPI:
 
     def error_need_to_contact(self, to):
         if self.type == "private":
-            print_message("User '{0}' needs to send some text bot in private".format(to))
+            logging.warning("User '{0}' needs to send some text bot in private".format(to))
         if self.type == "group":
-            print_message("You need start a conversation with your bot first in '{0}' group chat, type '/start@{1}'"
+            logging.warning("You need start a conversation with your bot first in '{0}' group chat, type '/start@{1}'"
                           .format(to, self.get_me()["result"]["username"]))
 
     def update_cache_uid(self, name, uid, message="Add new string to cache file"):
         cache_string = "{0};{1};{2}\n".format(name, self.type, str(uid).rstrip())
         # FIXME
-        if self.debug:
-            print_message("{0}: {1}".format(message, cache_string))
+        logging.debug("{0}: {1}".format(message, cache_string))
         with open(self.tmp_uids, "a") as cache_file_uids:
             cache_file_uids.write(cache_string)
         return True
 
     def get_uid_from_cache(self, name):
-        if self.debug:
-            print_message("Trying to read cached uid for {0}, {1}, from {2}".format(name, self.type, self.tmp_uids))
+        logging.debug("Trying to read cached uid for {0}, {1}, from {2}".format(name, self.type, self.tmp_uids))
         uid = 0
         if os.path.isfile(self.tmp_uids):
             with open(self.tmp_uids, 'r') as cache_file_uids:
@@ -234,10 +229,9 @@ class TelegramAPI:
                   "latitude": coordinates["latitude"], "longitude": coordinates["longitude"]}
         if self.reply_to_message_id:
             params["reply_to_message_id"] = self.reply_to_message_id
-        if self.debug:
-            print_message("Trying to /sendLocation:")
-            print_message(url)
-            print_message("post params: " + str(params))
+        logging.debug("Trying to /sendLocation:")
+        logging.debug(url)
+        logging.debug("post params: " + str(params))
         answer = requests.post(url, params=params, proxies=self.proxies)
         self.result = answer.json()
         self.ok_update()
@@ -337,13 +331,12 @@ class ZabbixWeb:
         zbx_img_url += "&name={0}&width={1}&height={2}&graphtype=0&legend=1".format(title, width, height)
         zbx_img_url += "".join(zbx_img_url_itemids)
 
-        if self.debug:
-            print_message(zbx_img_url)
+        logging.debug(zbx_img_url)
         answer = requests.get(zbx_img_url, cookies=self.cookie, proxies=self.proxies, verify=self.verify,
                               auth=requests.auth.HTTPBasicAuth(self.basic_auth_user, self.basic_auth_pass))
         status_code = answer.status_code
         if status_code == 404:
-            print_message("can't get image from '{0}'".format(zbx_img_url))
+            logging.warning("can't get image from '{0}'".format(zbx_img_url))
             return False
         res_img = answer.content
         file_bwrite(file_img, res_img)
@@ -470,6 +463,20 @@ def age2sec(age_str):
                 age_sec += int(i[0:-1])*60
     return age_sec
 
+def default_logging_config():
+    settings = {
+        "logging_format": "%(asctime)s %(name)s %(levelname)s: %(message)s", 
+        "logging_level": "INFO",
+        "log_file": "/dev/stdout",
+    }
+    if 'logging_format' in dir(zbxtg_settings) and zbxtg_settings.logging_format:
+        settings['logging_format'] = zbxtg_settings.logging_format
+    if 'logging_level' in dir(zbxtg_settings) and zbxtg_settings.logging_level:
+        settings['logging_level'] = zbxtg_settings.logging_level
+    if 'log_file' in dir(zbxtg_settings) and zbxtg_settings.log_file:
+        settings['log_file'] = zbxtg_settings.log_file
+
+    logging.basicConfig(format=settings['logging_format'], level=settings['logging_level'], filename=settings['log_file'])
 
 def main():
     if 'HTTP_PROXY' in os.environ:
@@ -481,23 +488,24 @@ def main():
     if 'https_proxy' in os.environ:
         del os.environ['https_proxy']
 
-
-
+    logging.getLogger("requests").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    
     tmp_dir = zbxtg_settings.zbx_tg_tmp_dir
     uids_dir = zbxtg_settings.zbx_tg_uids_dir
     if uids_dir == "/some/path/" + zbxtg_settings.zbx_tg_prefix:
-        print_message("WARNING: it is strongly recommended to change `zbx_tg_tmp_dir` variable in config!!!")
-        print_message("https://github.com/ableev/Zabbix-in-Telegram/wiki/Change-zbx_tg_tmp_dir-in-settings")
+        logging.warning("WARNING: it is strongly recommended to change `zbx_tg_tmp_dir` variable in config!!!")
+        logging.warning("https://github.com/ableev/Zabbix-in-Telegram/wiki/Change-zbx_tg_tmp_dir-in-settings")
 
     tmp_cookie = tmp_dir + "/cookie.py.txt"
-    tmp_uids = uids_dir + "/uids.txt"
+    tmp_uids = uids_dir + "/group_uids.txt"
     tmp_need_update = False  # do we need to update cache file with uids or not
 
     rnd = random.randint(0, 999)
     ts = time.time()
     hash_ts = str(ts) + "." + str(rnd)
 
-    log_file = "/dev/null"
+    
 
     args = sys.argv
 
@@ -517,7 +525,7 @@ def main():
         "location": None,  # address
         "lat": 0,  # latitude
         "lon": 0,  # longitude
-        "is_single_message": False,
+        "is_single_message": True,
         "markdown": False,
         "html": False,
         "signature": None,
@@ -528,7 +536,10 @@ def main():
         "to_group": None,
         "forked": False,
         "disable_notification": False,
+        "logging_format":  "%(asctime)s %(name)s %(levelname)s: %(message)s",
+        "logging_level":  "INFO",
     }
+
 
     url_github = "https://github.com/ableev/Zabbix-in-Telegram"
     url_wiki_base = "https://github.com/ableev/Zabbix-in-Telegram/wiki"
@@ -606,6 +617,8 @@ def main():
     zbx_to = args[1]
     zbx_subject = args[2]
     zbx_body = args[3]
+    logging.info("to: {}".format(zbx_to))
+    logging.info("msg header: {}".format(zbx_subject))
 
     tg = TelegramAPI(key=zbxtg_settings.tg_key)
 
@@ -699,13 +712,11 @@ def main():
     disable_notification =  bool(settings["disable_notification"])
     tg.disable_notification = disable_notification
     is_single_message = bool(settings["is_single_message"])
-    
-    # workaround for mutually exclusive settings values https://github.com/ableev/Zabbix-in-Telegram/issues/172
-    if not tg_method_image and is_single_message == True:
+    if not tg_method_image and is_single_message:
         is_single_message = False
-        
+
     # experimental way to send message to the group https://github.com/ableev/Zabbix-in-Telegram/issues/15
-    if args[0].split("/")[-1] == "zbxtg_group.py" or "--group" in args or tg_chat or tg_group:
+    if args[0].split("/")[-1] == "zbxtg_group.py" or "--group" or args[0].split("/")[-1] == "zbxtg.grp.py" in args or tg_chat or tg_group:
         tg_chat = True
         tg_group = True
         tg.type = "group"
@@ -714,10 +725,10 @@ def main():
         is_debug = True
         tg.debug = True
         zbx.debug = True
-        print_message(tg.get_me())
-        print_message("Cache file with uids: " + tg.tmp_uids)
+        logging.getLogger().setLevel(logging.DEBUG)
+        logging.debug(tg.get_me())
+        logging.debug("Cache file with uids: " + tg.tmp_uids)
         log_file = tmp_dir + ".debug." + hash_ts + ".log"
-        #print_message(log_file)
 
     if "--markdown" in args or settings["markdown"]:
         tg.markdown = True
@@ -729,8 +740,7 @@ def main():
         tg.type = "channel"
 
     if "--disable_web_page_preview" in args or disable_web_page_preview:
-        if is_debug:
-            print_message("'disable_web_page_preview' option has been enabled")
+        logging.debug("'disable_web_page_preview' option has been enabled")
         tg.disable_web_page_preview = True
 
     if "--graph_buttons" in args or settings["graph_buttons"]:
@@ -755,8 +765,7 @@ def main():
                 tg.location = location_coordinates
 
     if not os.path.isdir(tmp_dir):
-        if is_debug:
-            print_message("Tmp dir doesn't exist, creating new one...")
+        logging.debug("Tmp dir doesn't exist, creating new one...")
         try:
             os.makedirs(tmp_dir)
             open(tg.tmp_uids, "a").close()
@@ -764,8 +773,7 @@ def main():
             os.chmod(tg.tmp_uids, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
         except:
             tmp_dir = "/tmp"
-        if is_debug:
-            print_message("Using {0} as a temporary dir".format(tmp_dir))
+        logging.debug("Using {0} as a temporary dir".format(tmp_dir))
 
     done_all_work_in_the_fork = False
     # issue75
@@ -804,9 +812,7 @@ def main():
                     args_new.append("--group")
                 args_new.append("--forked")
                 args_new.insert(0, sys.executable)
-                if is_debug:
-                    print_message("Fork for custom recipient ({1}), new args: {0}".format(args_new,
-                                                                                          to_types_to_telegram[t]))
+                logging.debug("Fork for custom recipient ({1}), new args: {0}".format(args_new,to_types_to_telegram[t]))
                 subprocess.call(args_new)
                 done_all_work_in_the_fork = True
 
@@ -837,8 +843,7 @@ def main():
     if tmp_need_update:
         tg.update_cache_uid(zbx_to, str(uid).rstrip())
 
-    if is_debug:
-        print_message("Telegram uid of {0} '{1}': {2}".format(tg.type, zbx_to, uid))
+    logging.debug("Telegram uid of {0} '{1}': {2}".format(tg.type, zbx_to, uid))
 
     # add signature, turned off by default, you can turn it on in config
     try:
@@ -893,8 +898,7 @@ def main():
                 if tg.ok:
                     print_message(markdown_warning)
 
-    if is_debug:
-        print((tg.result))
+    logging.debug(tg.result)
 
     if settings["zbxtg_image_age"]:
         age_sec = age2sec(settings["zbxtg_image_age"])
@@ -918,7 +922,10 @@ def main():
                 zbxtg_file_img = external_image_get(settings["extimg"], tmp_dir=zbx.tmp_dir)
             zbxtg_body_text, is_modified = list_cut(zbxtg_body_text, 200)
             if tg.ok:
-                message_id = tg.result["result"]["message_id"]
+                if "message_id" in tg.result["result"].keys():
+                    message_id = tg.result["result"]["message_id"]
+                else:
+                    message_id = 0
             tg.reply_to_message_id = message_id
             if not zbxtg_file_img:
                 text_warn = "Can't get graph image, check script manually, see logs, or disable graphs"
@@ -955,7 +962,9 @@ def main():
         tg.send_location(to=uid, coordinates=location_coordinates)
 
     if "--show-settings" in args:
-        print_message("Settings: " + str(json.dumps(settings, indent=2)))
+        logging.info("Settings: " + str(json.dumps(settings, indent=2)))
+
 
 if __name__ == "__main__":
+    default_logging_config()
     main()
