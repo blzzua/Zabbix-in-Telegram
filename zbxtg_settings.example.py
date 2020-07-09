@@ -61,3 +61,7 @@ emoji_map = {
     "fire": "🔥",
     "hankey": "💩",
 }
+
+logging_format = '%(asctime)s %(name)s %(levelname)s: %(message)s'
+logging_level = "INFO"
+log_file = "/tmp/zbx_tg.log"
