@@ -162,6 +162,57 @@ class ZabbixEventController:
                 logger.error(f"Помилка під час підтвердження події {eventid}: {e}")
                 return -6  # Помилка під час ACK
 
+        elif prefix == 'MUT':
+            # Очікувані частини: [0]MUT, [1]ЧАС_ГОД, [2]EVENTID
+            if len(parts) < 3:
+                logger.error(f"Помилка: Невірний формат MUT callback_data. Очікується 'MUT:time:EVENTID'. Отримано: {callback_data}")
+                return -4
+
+            time_hours_str = parts[1]
+            event_id_str = parts[2]
+
+            try:
+                time_hours = int(time_hours_str)
+                eventid = int(event_id_str)
+            except ValueError:
+                logger.error(f"Помилка: Не вдалося конвертувати час '{time_hours_str}' або eventid '{event_id_str}' в число.")
+                return -4  # Помилка конвертації ID
+
+            logger.info(f"-> Спроба приглушити eventid: {eventid} на {time_hours} год (Callback: {callback_data})")
+
+            suppress_until_dt = datetime.now() + timedelta(hours=time_hours)
+            suppress_until_timestamp = int(suppress_until_dt.timestamp())
+
+            try:
+                events = self.api.event.get(eventids=[eventid])
+                if len(events) == 0:
+                    logger.error(f"Помилка: Подію з ID {eventid} не знайдено.")
+                    return -1
+            except Exception as e:
+                logger.error(f"Помилка отримання події {eventid} з Zabbix: {e}")
+                return -5 # Помилка API
+
+            # call zabbix api to suppress
+            try:
+                first_name = from_user.get("first_name", "")
+                last_name = from_user.get("last_name", "")
+                username = from_user.get("username", "")
+                ack_message = f"Suppressed by {first_name} {last_name} for {time_hours} hours."
+                ack_message = (ack_message + " " + f"(@{username})") if len(username) > 0 else ack_message
+
+                # event.acknowledge з дією Suppress (значення 8)
+                self.api.event.acknowledge(
+                    eventids=[eventid],
+                    action=32 + 4,  # 32 = Suppress  + 2 add message.
+                    message=ack_message,
+                    suppress_until=suppress_until_timestamp
+                )
+                logger.info(f"Успіх: Подія з ID {eventid} успішно приглушена до {suppress_until_dt.strftime('%Y-%m-%d %H:%M:%S')}.")
+                return 0
+            except Exception as e:
+                logger.error(f"Помилка під час приглушення події {eventid}: {e}")
+                return -7  # Помилка під час Suppress
+                
         # 6. Місце для майбутнього розширення
         elif prefix == 'IGN':
             logger.info(f"Обробка: Ігнорування події за запитом користувача: {from_user}")
