@@ -93,7 +93,7 @@ class ZabbixEventController:
         :param zbx_api_pass: Пароль Zabbix API.
         :return: 0 - успіх, -1 - подія не знайдена, -2 - вже підтверджено, -3 - невідомий префікс, -4 - невірний формат/помилка конвертації ID.
         """
-        logger.error(f"DEBUG:  step0")
+
         # 1. Розбиття даних зворотного виклику по одинарному символу ':'
         parts = callback_data.split(':')
 
@@ -102,12 +102,12 @@ class ZabbixEventController:
             logger.error( f"Помилка: Невірний формат callback_data. Очікується 'PREFIX:PARAM2:EVENTID'. Отримано: {callback_data}")
             return -4
         prefix = parts[0]
-        logger.error(f"DEBUG:  step1 {callback_data}")
+
         if prefix == 'AKN':
             # 1.1 Обробка префікса AKN (Acknowledge)
             # Нам потрібні частини з індексами 0 (префікс) і 2 (eventid)
             event_id_str = parts[2]
-            logger.debug(f"DEBUG:  step2")
+            
             try:
                 eventid = int(event_id_str)
             except ValueError:
@@ -116,13 +116,7 @@ class ZabbixEventController:
 
             logger.info(f"-> Спроба підтвердити eventid: {eventid} (Callback: {callback_data})")
 
-            # todo: refactor, переробити так щоб була перевірка і якщо необхідно аутентифікація. якщо неможливо - аварійна зупинка роботи.
-            # # 2. Аутентифікація в Zabbix API
-            # try:
-            #     self.login()
-            # except Exception as e:
-            #     print(f"Помилка автентифікації в Zabbix: {e}")
-            #     return -5  # Помилка API
+            # todo: refactor, зробити так щоб була перевірка і якщо необхідно аутентифікація. якщо неможливо - аварійна зупинка роботи.
 
             # 3. Отримання події
             logger.debug(f"DEBUG:  pre step3")
@@ -132,8 +126,6 @@ class ZabbixEventController:
                 # Подія не знайдена
                 logger.error(f"Помилка: Подію з ID {eventid} не знайдено.")
                 return -1
-            logger.debug(f"DEBUG:  step4")
-
             current_event = events[0]
 
             # 4. Перевірка статусу підтвердження
@@ -141,7 +133,6 @@ class ZabbixEventController:
                 # Вже підтверджено
                 logger.info(f"Подія з ID {eventid} вже підтверджена.")
                 return -2
-            logger.debug(f"DEBUG:  step5 type = {type(current_event)} = {current_event}")
 
             # 5. Підтвердження події (Acknowledge)
             try:
